@@ -23,10 +23,11 @@ export function WeeklyBars({
   const innerW = w - padL - 8;
   const innerH = height - padT - padB;
   const barW = Math.min(34, innerW / data.length - 2);
+  const ticks = max <= 2 ? [0, 1] : [0, 0.5, 1];
 
   return (
     <svg viewBox={`0 0 ${w} ${height}`} className="w-full">
-      {[0, 0.5, 1].map((t) => {
+      {ticks.map((t) => {
         const y = padT + innerH * (1 - t);
         return (
           <g key={t}>
