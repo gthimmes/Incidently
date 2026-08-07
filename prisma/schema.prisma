@@ -1,0 +1,260 @@
+// Incidently — incident management platform
+// Data model covering: incidents, on-call, escalation, notifications,
+// postmortems, remediations, services, status page, Jira integration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ─── People ──────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String? // E.164, used for SMS/voice paging
+  role         String   @default("responder") // admin | responder | observer
+  avatarColor  String   @default("#6366f1")
+  timezone     String   @default("America/Denver")
+  createdAt    DateTime @default(now())
+
+  incidentRoles    IncidentRole[]
+  statusUpdates    StatusUpdate[]
+  events           IncidentEvent[]
+  actionItems      ActionItem[]    @relation("assignee")
+  shifts           Shift[]
+  escalationTargets EscalationTarget[]
+  notifications    Notification[]
+  pages            Page[]
+}
+
+// ─── Services ────────────────────────────────────────────────────────────────
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  tier        Int      @default(2) // 1 = critical, 2 = important, 3 = supporting
+  status      String   @default("operational") // operational | degraded | partial_outage | major_outage | maintenance
+  ownerTeam   String?
+  createdAt   DateTime @default(now())
+
+  incidents          Incident[]
+  escalationPolicyId String?
+  escalationPolicy   EscalationPolicy? @relation(fields: [escalationPolicyId], references: [id])
+}
+
+// ─── Incidents ───────────────────────────────────────────────────────────────
+
+model Incident {
+  id          String    @id @default(cuid())
+  number      Int       @unique // INC-1042 style sequential
+  title       String
+  summary     String?
+  severity    String // sev1 | sev2 | sev3 | sev4
+  status      String    @default("triage") // triage | investigating | identified | monitoring | resolved
+  visibility  String    @default("public") // public (on status page) | internal
+  declaredAt  DateTime  @default(now())
+  acknowledgedAt DateTime?
+  mitigatedAt DateTime?
+  resolvedAt  DateTime?
+  slackChannel String? // simulated dedicated channel name
+
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+
+  roles         IncidentRole[]
+  events        IncidentEvent[]
+  statusUpdates StatusUpdate[]
+  postmortem    Postmortem?
+  actionItems   ActionItem[]
+  pages         Page[]
+  notifications Notification[]
+  jiraLinks     JiraLink[]
+}
+
+model IncidentRole {
+  id         String   @id @default(cuid())
+  role       String // commander | comms | ops | scribe
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@unique([incidentId, role])
+}
+
+// Timeline events — everything that happens is recorded
+model IncidentEvent {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  kind       String // declared | status_change | severity_change | role_assigned | note | page_sent | page_acked | escalated | update_published | resolved | jira_linked | action_item
+  message    String
+  metadata   String? // JSON blob
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+// Public/internal status updates published during an incident
+model StatusUpdate {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  body       String
+  status     String // incident status at time of update
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+// ─── On-call & escalation ────────────────────────────────────────────────────
+
+model Schedule {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  timezone    String  @default("America/Denver")
+  rotationDays Int    @default(7)
+
+  shifts            Shift[]
+  escalationTargets EscalationTarget[]
+}
+
+model Shift {
+  id         String   @id @default(cuid())
+  scheduleId String
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  startsAt   DateTime
+  endsAt     DateTime
+}
+
+model EscalationPolicy {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  repeatCount Int     @default(1) // loop through levels N times before giving up
+
+  levels   EscalationLevel[]
+  services Service[]
+}
+
+model EscalationLevel {
+  id               String           @id @default(cuid())
+  policyId         String
+  policy           EscalationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  levelNumber      Int
+  delayMinutes     Int              @default(5) // wait before escalating to next level
+  targets          EscalationTarget[]
+
+  @@unique([policyId, levelNumber])
+}
+
+model EscalationTarget {
+  id         String          @id @default(cuid())
+  levelId    String
+  level      EscalationLevel @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  // either a direct user or a schedule (resolves to whoever is on call)
+  userId     String?
+  user       User?           @relation(fields: [userId], references: [id])
+  scheduleId String?
+  schedule   Schedule?       @relation(fields: [scheduleId], references: [id])
+}
+
+// A page = an attempt to summon a specific human for an incident
+model Page {
+  id         String    @id @default(cuid())
+  incidentId String
+  incident   Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  level      Int       @default(1)
+  status     String    @default("pending") // pending | acknowledged | timed_out | resolved
+  sentAt     DateTime  @default(now())
+  ackedAt    DateTime?
+
+  notifications Notification[]
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+model Notification {
+  id         String   @id @default(cuid())
+  channel    String // sms | voice | email | slack | push
+  recipient  String // phone/email/channel rendered at send time
+  body       String
+  status     String   @default("sent") // queued | sent | delivered | failed | simulated
+  provider   String   @default("simulator") // simulator | twilio | smtp | slack
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  incidentId String?
+  incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  pageId     String?
+  page       Page?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+// ─── Postmortems & remediation ──────────────────────────────────────────────
+
+model Postmortem {
+  id         String   @id @default(cuid())
+  incidentId String   @unique
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  status     String   @default("draft") // draft | in_review | published
+  summary    String?
+  impact     String?
+  rootCause  String?
+  timelineNotes String?
+  whatWentWell  String?
+  whatWentPoorly String?
+  whereWeGotLucky String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ActionItem {
+  id         String    @id @default(cuid())
+  incidentId String
+  incident   Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  title      String
+  description String?
+  kind       String    @default("remediation") // remediation | follow_up | investigation
+  status     String    @default("open") // open | in_progress | done | wont_do
+  priority   String    @default("medium") // high | medium | low
+  dueAt      DateTime?
+  assigneeId String?
+  assignee   User?     @relation("assignee", fields: [assigneeId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  jiraLinks JiraLink[]
+}
+
+// ─── Jira integration ───────────────────────────────────────────────────────
+
+model JiraLink {
+  id           String      @id @default(cuid())
+  issueKey     String // e.g. OPS-123
+  issueUrl     String
+  issueSummary String?
+  issueStatus  String?
+  incidentId   String?
+  incident     Incident?   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  actionItemId String?
+  actionItem   ActionItem? @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String // JSON
+}
