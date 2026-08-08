@@ -39,7 +39,14 @@ export default function RunbookEditor({ runbook, services }: Props) {
     if (line.startsWith("### ")) return <h4 key={i} className="font-semibold mt-4 mb-1">{line.slice(4)}</h4>;
     if (line.startsWith("## ")) return <h3 key={i} className="font-semibold text-lg mt-5 mb-1.5">{line.slice(3)}</h3>;
     if (line.startsWith("# ")) return <h2 key={i} className="font-bold text-xl mt-5 mb-2">{line.slice(2)}</h2>;
-    if (/^\d+\.\s/.test(line)) return <li key={i} className="ml-5 list-decimal my-1">{inline(line.replace(/^\d+\.\s/, ""))}</li>;
+    const numbered = line.match(/^(\d+)\.\s(.*)$/);
+    if (numbered)
+      return (
+        <p key={i} className="ml-1 my-1 flex gap-2">
+          <span className="text-dim font-medium shrink-0">{numbered[1]}.</span>
+          <span>{inline(numbered[2])}</span>
+        </p>
+      );
     if (line.startsWith("- ")) return <li key={i} className="ml-5 list-disc my-1">{inline(line.slice(2))}</li>;
     if (line.trim() === "") return <div key={i} className="h-2" />;
     return <p key={i} className="my-1 leading-relaxed">{inline(line)}</p>;
