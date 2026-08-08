@@ -30,9 +30,12 @@ test.describe("surfaces", () => {
     for (const label of ["Incidents · 12w", "MTTA", "MTTR", "SEV1/SEV2 share"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
-    for (const chart of ["Incidents per week", "MTTR trend", "By severity", "By service"]) {
+    for (const chart of ["Incidents per week", "MTTR trend", "By severity", "By service", "On-call load"]) {
       await expect(page.getByRole("heading", { name: chart })).toBeVisible();
     }
+    // seeded historical pages give the on-call load chart data
+    const loadSection = page.locator("section", { hasText: "On-call load" });
+    await expect(loadSection.getByText(/James Okafor|Maya Rodriguez|Dev Patel/).first()).toBeVisible();
     // SVG charts actually rendered
     expect(await page.locator("svg rect[rx='4']").count()).toBeGreaterThan(0); // bars
     expect(await page.locator("svg path[stroke]").count()).toBeGreaterThan(0); // trend line

@@ -290,7 +290,7 @@ describe("incident lifecycle", () => {
     const { tier2 } = await fixtures();
     const incident = await declareIncident({ title: "Minor blip", severity: "sev3", serviceId: tier2.id });
 
-    let service = await prisma.service.findUniqueOrThrow({ where: { id: tier2.id } });
+    const service = await prisma.service.findUniqueOrThrow({ where: { id: tier2.id } });
     expect(service.status).toBe("operational"); // only sev1/sev2 degrade the status page
 
     await changeIncidentStatus(incident.id, "resolved");

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { upcomingWindows } from "@/lib/maintenance";
 import { ServiceStatusBadge } from "@/components/ui";
+import MaintenancePanel from "./MaintenancePanel";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,8 @@ export default async function ServicesPage() {
     },
     orderBy: [{ tier: "asc" }, { name: "asc" }],
   });
+  const windows = await upcomingWindows();
+  const now = Date.now();
 
   return (
     <div className="space-y-5 animate-in">
@@ -28,6 +32,18 @@ export default async function ServicesPage() {
           The service catalog — each service maps to an escalation policy so declaring an incident pages the right team instantly.
         </p>
       </header>
+
+      <MaintenancePanel
+        services={services.map((s) => ({ id: s.id, name: s.name }))}
+        windows={windows.map((w) => ({
+          id: w.id,
+          title: w.title,
+          startsAt: w.startsAt.toISOString(),
+          endsAt: w.endsAt.toISOString(),
+          serviceName: w.service.name,
+          active: w.startsAt.getTime() <= now && w.endsAt.getTime() > now,
+        }))}
+      />
 
       <div className="grid grid-cols-2 gap-5">
         {services.map((s) => {

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create and seed database
+        run: |
+          npx prisma db push
+          npx tsx prisma/seed.ts
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run build
+
+      - name: Start server
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000 >/dev/null
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Upload E2E traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

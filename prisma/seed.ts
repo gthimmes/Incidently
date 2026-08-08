@@ -80,7 +80,7 @@ async function main() {
   const webapp = await mkService("Web Application", "web-app", 1, "Main customer web application");
   const search = await mkService("Search & Indexing", "search", 2, "Full-text search and background indexing");
   const notifications = await mkService("Notification Service", "notifications", 2, "Email/SMS delivery to customers");
-  const internal = await mkService("Internal Tooling", "internal-tools", 3, "Admin dashboards and internal tools");
+  await mkService("Internal Tooling", "internal-tools", 3, "Admin dashboards and internal tools");
 
   // ── Historical incidents (resolved, with postmortems & remediations) ──
   let n = 1000;
@@ -131,6 +131,14 @@ async function main() {
     });
     await prisma.statusUpdate.create({
       data: { incidentId: inc.id, body: "This incident has been resolved. Full service restored.", status: "resolved", authorId: opts.comms.id, createdAt: resolvedAt },
+    });
+
+    // the page that summoned the ops lead (for on-call load analytics)
+    await prisma.page.create({
+      data: {
+        incidentId: inc.id, userId: opts.ops.id, level: 1, status: "resolved",
+        sentAt: declaredAt, ackedAt: new Date(declaredAt.getTime() + opts.ackMin * 60_000),
+      },
     });
 
     await prisma.postmortem.create({

@@ -50,6 +50,7 @@ model Service {
   escalationPolicy   EscalationPolicy? @relation(fields: [escalationPolicyId], references: [id])
   alerts             Alert[]
   runbooks           Runbook[]
+  maintenanceWindows MaintenanceWindow[]
 }
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
@@ -288,6 +289,22 @@ model Alert {
   incident  Incident? @relation(fields: [incidentId], references: [id])
 
   @@index([dedupKey, status])
+}
+
+// ─── Maintenance windows ────────────────────────────────────────────────────
+
+// Planned maintenance shows on the status page ahead of time; while a
+// window is active the service reports "maintenance" instead of an outage.
+model MaintenanceWindow {
+  id        String   @id @default(cuid())
+  title     String
+  notes     String?
+  startsAt  DateTime
+  endsAt    DateTime
+  cancelled Boolean  @default(false)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 // ─── Runbooks ───────────────────────────────────────────────────────────────

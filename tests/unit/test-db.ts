@@ -46,6 +46,7 @@ export async function wipeAll(prisma: any): Promise<void> {
   await prisma.shift.deleteMany();
   await prisma.schedule.deleteMany();
   await prisma.runbook.deleteMany();
+  await prisma.maintenanceWindow.deleteMany();
   await prisma.service.deleteMany();
   await prisma.escalationPolicy.deleteMany();
   await prisma.user.deleteMany();

@@ -1,6 +1,7 @@
 // Core domain operations shared by API routes.
 import { prisma } from "./db";
 import { fireLevel } from "./escalation";
+import { broadcastToSlack } from "./slack";
 import { INCIDENT_STATUSES, SEVERITIES } from "./constants";
 
 async function nextIncidentNumber(): Promise<number> {
@@ -75,6 +76,14 @@ export async function declareIncident(opts: {
   // page level 1 of the service's escalation policy
   await fireLevel(incident.id, 1);
 
+  const service = opts.serviceId
+    ? await prisma.service.findUnique({ where: { id: opts.serviceId } })
+    : null;
+  await broadcastToSlack({
+    incidentId: incident.id,
+    text: `:rotating_light: *${sev?.label ?? opts.severity} declared* — INC-${number}: ${opts.title}${service ? ` (${service.name})` : ""}. Channel: ${incident.slackChannel}`,
+  });
+
   return incident;
 }
 
@@ -103,6 +112,14 @@ export async function changeIncidentStatus(incidentId: string, status: string, a
       message: status === "resolved" ? "Incident resolved" : `Status changed: ${from} → ${to}`,
       userId: actor.id,
     },
+  });
+
+  await broadcastToSlack({
+    incidentId,
+    text:
+      status === "resolved"
+        ? `:white_check_mark: *INC-${incident.number} resolved* — ${incident.title}`
+        : `:arrows_counterclockwise: INC-${incident.number} status: ${from} → *${to}*`,
   });
 
   if (status === "resolved") {

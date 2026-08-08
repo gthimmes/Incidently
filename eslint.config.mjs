@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Relative-time rendering (TimeAgo, Duration, shift windows) reads the
+      // clock during render on purpose; every page is force-dynamic and the
+      // elements carry suppressHydrationWarning.
+      "react-hooks/purity": "off",
+      // Palette open/close resets state in an effect deliberately.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

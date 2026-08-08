@@ -60,6 +60,27 @@ export default async function AnalyticsPage() {
     .map(([label, value]) => ({ label, value }))
     .sort((a, b) => b.value - a.value);
 
+  // On-call load: who is actually getting paged?
+  const pages = await prisma.page.findMany({
+    where: { sentAt: { gte: since } },
+    include: { user: true },
+  });
+  const pageCounts = new Map<string, { count: number; nights: number }>();
+  for (const p of pages) {
+    const entry = pageCounts.get(p.user.name) ?? { count: 0, nights: 0 };
+    entry.count += 1;
+    const hour = p.sentAt.getHours();
+    if (hour >= 22 || hour < 7) entry.nights += 1;
+    pageCounts.set(p.user.name, entry);
+  }
+  const byResponder = [...pageCounts.entries()]
+    .map(([label, v]) => ({
+      label,
+      value: v.count,
+      sublabel: v.nights ? `${v.nights} overnight` : undefined,
+    }))
+    .sort((a, b) => b.value - a.value);
+
   const stats = [
     { label: "Incidents · 12w", value: String(incidents.length) },
     { label: "MTTA", value: fmtMinutes(mtta), hint: "mean time to acknowledge" },
@@ -117,6 +138,20 @@ export default async function AnalyticsPage() {
           <h2 className="font-semibold mb-1">By service</h2>
           <p className="text-xs text-dim mb-4">Last 12 weeks</p>
           <RowBars data={byService} />
+        </section>
+
+        <section className="card p-5 col-span-2">
+          <h2 className="font-semibold mb-1">On-call load</h2>
+          <p className="text-xs text-dim mb-4">
+            Pages per responder over 12 weeks — watch for burnout before it happens
+          </p>
+          {byResponder.length ? (
+            <div className="max-w-xl">
+              <RowBars data={byResponder} />
+            </div>
+          ) : (
+            <p className="text-sm text-dim">No pages sent in this window.</p>
+          )}
         </section>
       </div>
     </div>

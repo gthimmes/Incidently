@@ -158,6 +158,11 @@ export function RowBars({
           <span className="w-8 text-right font-medium" style={{ fontVariantNumeric: "tabular-nums" }}>
             {d.value}
           </span>
+          {d.sublabel && (
+            <span className="text-xs text-dim w-24 shrink-0" title="Pages between 22:00 and 07:00">
+              {d.sublabel}
+            </span>
+          )}
         </div>
       ))}
     </div>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { effectiveServiceStatuses, upcomingWindows } from "@/lib/maintenance";
 import { SERVICE_STATUSES, INCIDENT_STATUSES } from "@/lib/constants";
 import { TimeAgo } from "@/components/ui";
 
@@ -6,7 +7,13 @@ export const dynamic = "force-dynamic";
 
 // The public status page — what your customers would see at status.yourco.com
 export default async function StatusPage() {
-  const services = await prisma.service.findMany({ orderBy: [{ tier: "asc" }, { name: "asc" }] });
+  const rawServices = await prisma.service.findMany({ orderBy: [{ tier: "asc" }, { name: "asc" }] });
+  const effective = await effectiveServiceStatuses(rawServices.map((s) => s.id));
+  const services = rawServices.map((s) => ({
+    ...s,
+    status: effective.get(s.id)?.effectiveStatus ?? s.status,
+  }));
+  const maintenance = await upcomingWindows();
   const openIncidents = await prisma.incident.findMany({
     where: { status: { not: "resolved" }, visibility: "public" },
     include: {
@@ -33,7 +40,9 @@ export default async function StatusPage() {
 
   const banner = allOperational
     ? { text: "All systems operational", color: "#22c55e" }
-    : { text: SERVICE_STATUSES[worstStatus as keyof typeof SERVICE_STATUSES].label, color: SERVICE_STATUSES[worstStatus as keyof typeof SERVICE_STATUSES].color };
+    : worstStatus === "operational"
+      ? { text: "Scheduled maintenance in progress", color: "#3b82f6" }
+      : { text: SERVICE_STATUSES[worstStatus as keyof typeof SERVICE_STATUSES].label, color: SERVICE_STATUSES[worstStatus as keyof typeof SERVICE_STATUSES].color };
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in">
@@ -79,6 +88,29 @@ export default async function StatusPage() {
               </div>
             );
           })}
+        </section>
+      )}
+
+      {maintenance.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-dim uppercase tracking-wide">Scheduled maintenance</h2>
+          <div className="card divide-y divide-line">
+            {maintenance.map((w) => {
+              const active = w.startsAt.getTime() <= Date.now() && w.endsAt.getTime() > Date.now();
+              return (
+                <div key={w.id} className="px-5 py-3.5">
+                  <p className="font-medium text-sm flex items-center gap-2">
+                    <span>🔧</span> {w.title}
+                    {active && <span className="text-blue-400 text-xs font-normal">— in progress</span>}
+                  </p>
+                  <p className="text-xs text-dim mt-1" suppressHydrationWarning>
+                    {w.service.name} · {w.startsAt.toLocaleString()} → {w.endsAt.toLocaleString()}
+                  </p>
+                  {w.notes && <p className="text-xs text-dim mt-1">{w.notes}</p>}
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 

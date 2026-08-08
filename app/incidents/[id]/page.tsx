@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { SeverityBadge, StatusBadge, Avatar, TimeAgo, Duration } from "@/components/ui";
+import { SeverityBadge, StatusBadge, TimeAgo, Duration } from "@/components/ui";
 import { INCIDENT_ROLES } from "@/lib/constants";
 import IncidentControls from "./IncidentControls";
 import Timeline from "./Timeline";
@@ -105,7 +105,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
               </ul>
             </section>
           )}
-          <PagesPanel incidentId={incident.id} pages={incident.pages} disabled={resolved} />
+          <PagesPanel pages={incident.pages} disabled={resolved} />
           <ActionItemsPanel incidentId={incident.id} items={incident.actionItems} users={users} />
 
           {/* key timestamps */}

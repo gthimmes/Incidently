@@ -21,11 +21,9 @@ const PAGE_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 export default function PagesPanel({
-  incidentId: _incidentId,
   pages,
   disabled,
 }: {
-  incidentId: string;
   pages: PageRow[];
   disabled: boolean;
 }) {

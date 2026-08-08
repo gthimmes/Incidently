@@ -343,6 +343,79 @@ describe("on-call overrides", () => {
   });
 });
 
+describe("maintenance windows", () => {
+  it("validates input and rejects unknown services", async () => {
+    expect((await post("/api/maintenance", { title: "x" })).status).toBe(400);
+    const svc = await prisma.service.findUniqueOrThrow({ where: { slug: "search" } });
+    expect(
+      (
+        await post("/api/maintenance", {
+          title: "backwards window",
+          serviceId: svc.id,
+          startsAt: new Date(Date.now() + 3600_000).toISOString(),
+          endsAt: new Date().toISOString(),
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await post("/api/maintenance", {
+          title: "ghost service",
+          serviceId: "nope",
+          startsAt: new Date().toISOString(),
+          endsAt: new Date(Date.now() + 3600_000).toISOString(),
+        })
+      ).status,
+    ).toBe(404);
+  });
+
+  it("schedules and cancels a window; active windows flip the effective status", async () => {
+    const svc = await prisma.service.findUniqueOrThrow({ where: { slug: "notifications" } });
+    const { status, body } = await post("/api/maintenance", {
+      title: "Mail relay upgrade",
+      serviceId: svc.id,
+      startsAt: new Date(Date.now() - 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 3600_000).toISOString(),
+    });
+    expect(status).toBe(201);
+
+    const { effectiveServiceStatuses } = await import("@/lib/maintenance");
+    const map = await effectiveServiceStatuses([svc.id]);
+    expect(map.get(svc.id)?.effectiveStatus).toBe("maintenance");
+
+    expect((await patch(`/api/maintenance/${body.id}`, { action: "cancel" })).status).toBe(200);
+    const after = await effectiveServiceStatuses([svc.id]);
+    expect(after.get(svc.id)?.effectiveStatus).toBe("operational");
+    expect((await patch(`/api/maintenance/${body.id}`, {})).status).toBe(400);
+  });
+});
+
+describe("slack broadcasting", () => {
+  it("declaring an incident records a #incidents broadcast in the feed", async () => {
+    const inc = await declare({ title: "Slack broadcast test", severity: "sev3" });
+    const slack = await prisma.notification.findMany({
+      where: { incidentId: inc.id, channel: "slack" },
+    });
+    expect(slack.length).toBeGreaterThan(0);
+    expect(slack[0].recipient).toBe("#incidents");
+    expect(slack[0].body).toContain(`INC-${inc.number}`);
+  });
+
+  it("status changes and published updates broadcast too", async () => {
+    const inc = await declare({ title: "Slack lifecycle test", severity: "sev3" });
+    await patch(`/api/incidents/${inc.id}`, { status: "investigating" });
+    await post(`/api/incidents/${inc.id}/updates`, { body: "Slack update body" });
+
+    const slack = await prisma.notification.findMany({
+      where: { incidentId: inc.id, channel: "slack" },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(slack.length).toBeGreaterThanOrEqual(3); // declare + status + update
+    expect(slack.some((n: any) => n.body.includes("Investigating"))).toBe(true);
+    expect(slack.some((n: any) => n.body.includes("Slack update body"))).toBe(true);
+  });
+});
+
 describe("search", () => {
   it("finds incidents by number, and services/runbooks by name", async () => {
     const byNumber = await api("/api/search?q=1006");

@@ -67,12 +67,12 @@ async function twilioSend(req: SendRequest): Promise<ProviderResult> {
     return { status: res.ok ? "sent" : "failed", provider: "twilio" };
   }
 
-  return simulatorSend(req);
+  return simulatorSend();
 }
 
 // ─── Simulator (default, zero-cost) ─────────────────────────────────────────
 
-async function simulatorSend(_req: SendRequest): Promise<ProviderResult> {
+async function simulatorSend(): Promise<ProviderResult> {
   // Simulates network latency, always succeeds. The Notification row itself
   // is the visible artifact — the UI renders a live delivery feed from it.
   return { status: "simulated", provider: "simulator" };
@@ -92,7 +92,7 @@ export async function send(req: SendRequest) {
   const useTwilio =
     twilioConfigured() && (req.channel === "sms" || req.channel === "voice");
 
-  const result = useTwilio ? await twilioSend(req) : await simulatorSend(req);
+  const result = useTwilio ? await twilioSend(req) : await simulatorSend();
 
   return prisma.notification.create({
     data: {
