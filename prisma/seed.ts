@@ -10,6 +10,8 @@ const now = Date.now();
 
 async function main() {
   // wipe (order matters for FKs)
+  await prisma.alert.deleteMany();
+  await prisma.runbook.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.page.deleteMany();
   await prisma.jiraLink.deleteMany();
@@ -285,7 +287,98 @@ async function main() {
   await prisma.setting.create({ data: { key: "jira_mock_counter", value: "110" } });
   await prisma.setting.create({ data: { key: "incident_counter", value: String(n) } });
 
-  console.log(`Seeded: ${team.length} users, 6 services, ${n - 1000} incidents (1 live)`);
+  // ── Runbooks ──
+  await prisma.runbook.create({
+    data: {
+      title: "Payments Pipeline: elevated error rates",
+      serviceId: payments.id,
+      content: `# Payments error-rate response
+
+## Symptoms
+- Checkout 5xx rate above 2% on the \`payments-checkout\` dashboard
+- Merchant webhook delays
+
+## First 10 minutes
+1. Check the provider status page and \`payments-provider-health\` dashboard
+2. Check recent deploys: \`deployctl list payments --since 2h\`
+3. If a deploy correlates, **roll back first, investigate second**
+4. Activate the circuit breaker if provider 502s exceed 10%: \`payments-cli breaker on\`
+
+## Escalation
+- Provider-side issue → open a P1 with the provider, update status page
+- Our integration layer → page the payments secondary via **Escalate**`,
+    },
+  });
+  await prisma.runbook.create({
+    data: {
+      title: "Public API: gateway 5xx / health-check failures",
+      serviceId: api.id,
+      content: `# Gateway 5xx response
+
+## Symptoms
+- LB health checks flapping, 503s at the edge
+
+## Steps
+1. \`kubectl get pods -n gateway\` — look for crash loops
+2. Diff the last config deploy: \`gateway-cli config diff HEAD~1\`
+3. Bad config → \`gateway-cli config rollback\` (takes ~90s to propagate)
+4. Verify: error rate on \`api-edge\` dashboard back under 0.5%
+
+## Notes
+- Config-only deploys skip the canary — treat every config change as suspect first`,
+    },
+  });
+  await prisma.runbook.create({
+    data: {
+      title: "General: comms cadence during SEV1/SEV2",
+      content: `# Comms cadence
+
+- SEV1: status-page update every **15 minutes**, even if "still investigating"
+- SEV2: every 30 minutes
+- Use plain language: what customers see, what we're doing, when we'll update next
+- Never promise an ETA you haven't verified with the ops lead`,
+    },
+  });
+
+  // ── Alerts ──
+  await prisma.alert.create({
+    data: {
+      title: "P95 latency above 800ms on search queries",
+      description: "Rolling 5m P95 at 843ms (threshold 800ms).",
+      severity: "warning", source: "grafana", dedupKey: "search-p95-latency",
+      serviceId: search.id, count: 3,
+      firstSeenAt: new Date(now - 52 * 60_000), lastSeenAt: new Date(now - 4 * 60_000),
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      title: "Payment provider webhook latency degraded",
+      description: "Webhook round-trip P50 at 2.1s (baseline 300ms).",
+      severity: "warning", source: "datadog", dedupKey: "payments-webhook-latency",
+      serviceId: payments.id, incidentId: live.id, count: 7,
+      firstSeenAt: new Date(now - 25 * 60_000), lastSeenAt: new Date(now - 2 * 60_000),
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      title: "Certificate expiring in 14 days: smtp-relay.aiwyn.ai",
+      description: "Renew before 2026-08-20 to avoid delivery failure.",
+      severity: "info", source: "cloudwatch", dedupKey: "cert-smtp-relay",
+      serviceId: notifications.id,
+      firstSeenAt: new Date(now - 6 * 3600_000), lastSeenAt: new Date(now - 6 * 3600_000),
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      title: "Disk usage 85% on indexing worker",
+      severity: "warning", source: "cloudwatch", dedupKey: "indexer-disk",
+      serviceId: search.id, status: "resolved", count: 2,
+      firstSeenAt: new Date(now - 2 * DAY), lastSeenAt: new Date(now - 2 * DAY + 3600_000),
+      resolvedAt: new Date(now - 2 * DAY + 2 * 3600_000),
+    },
+  });
+
+  console.log(`Seeded: ${team.length} users, 6 services, ${n - 1000} incidents (1 live), 3 runbooks, 4 alerts`);
 }
 
 main()

@@ -30,6 +30,12 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
   if (!incident) notFound();
 
   const users = await prisma.user.findMany({ orderBy: { name: "asc" } });
+  const runbooks = incident.serviceId
+    ? await prisma.runbook.findMany({
+        where: { serviceId: incident.serviceId },
+        select: { id: true, title: true },
+      })
+    : [];
   const resolved = incident.status === "resolved";
 
   return (
@@ -83,6 +89,22 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
             roleDefs={INCIDENT_ROLES}
             disabled={resolved}
           />
+          {runbooks.length > 0 && (
+            <section className="card p-4">
+              <h3 className="text-xs font-semibold text-dim uppercase tracking-wide mb-2">
+                Runbooks for {incident.service?.name}
+              </h3>
+              <ul className="space-y-1.5">
+                {runbooks.map((rb) => (
+                  <li key={rb.id}>
+                    <Link href={`/runbooks/${rb.id}`} className="text-sm text-accent hover:underline flex items-center gap-2">
+                      <span>📘</span> {rb.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <PagesPanel incidentId={incident.id} pages={incident.pages} disabled={resolved} />
           <ActionItemsPanel incidentId={incident.id} items={incident.actionItems} users={users} />
 

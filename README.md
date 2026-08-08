@@ -45,6 +45,23 @@ npm run dev                 # → http://localhost:3000
 - **Mock mode** for demos — realistic issue keys without a real Jira site
 - Configure site URL / email / API token / project key in Settings, with connection test
 
+### 📡 Alert ingestion
+- Token-secured webhook (`POST /api/ingest`) for Grafana / Datadog / CloudWatch / anything that can send JSON
+- Dedup by `dedup_key` — repeat alerts bump a counter instead of flooding the feed; `status: "resolved"` from the source auto-closes them
+- **Promotion rules**: critical + tier-1 service → SEV1 incident auto-declared (pages on-call, no human in the loop) · critical + tier-2/3 → SEV2 · service already has an open incident → alert attaches to it
+- Alerts feed with ack/resolve/promote and one-click test alerts to demo the whole pipeline
+
+### 📘 Runbooks
+- Markdown runbooks attached to services, with live preview editing
+- Automatically surfaced in the incident room for the affected service — the 3am answer to "now what?"
+
+### ⏱️ Real auto-escalation & overrides
+- A background ticker (Next.js instrumentation) sweeps every 60s: unacknowledged pages past their level's delay fire the next escalation level automatically
+- One-click on-call overrides — "I've got it tonight" without editing the rotation
+
+### ⌨️ Command palette
+- `Ctrl+K` anywhere: search incidents (by number too — "1007"), services, runbooks, postmortems, plus quick actions
+
 ### 🌐 Status page
 - Public-facing status page with component health, active incident updates, and 14-day history
 - Service status auto-degrades on SEV1/SEV2 declaration and auto-restores on resolve

@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/db";
 import { whoIsOnCall } from "@/lib/escalation";
 import { Avatar } from "@/components/ui";
+import OverrideButton from "./OverrideButton";
 
 export const dynamic = "force-dynamic";
 
 const DAY = 24 * 3600_000;
 
 export default async function OnCallPage() {
+  const users = await prisma.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
   const [schedules, policies] = await Promise.all([
     prisma.schedule.findMany({
       include: {
@@ -62,10 +64,11 @@ export default async function OnCallPage() {
                       <Avatar name={current.name} color={current.avatarColor} size={36} />
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-panel" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-sm">{current.name}</p>
                       <p className="text-xs text-green-400">On call now</p>
                     </div>
+                    <OverrideButton scheduleId={schedule.id} users={users} />
                   </div>
                 )}
 

@@ -48,6 +48,8 @@ model Service {
   incidents          Incident[]
   escalationPolicyId String?
   escalationPolicy   EscalationPolicy? @relation(fields: [escalationPolicyId], references: [id])
+  alerts             Alert[]
+  runbooks           Runbook[]
 }
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ model Incident {
   pages         Page[]
   notifications Notification[]
   jiraLinks     JiraLink[]
+  alerts        Alert[]
 }
 
 model IncidentRole {
@@ -257,4 +260,44 @@ model JiraLink {
 model Setting {
   key   String @id
   value String // JSON
+}
+
+// ─── Alert ingestion ────────────────────────────────────────────────────────
+
+// Alerts arrive from monitoring tools (Grafana, Datadog, CloudWatch, custom)
+// via the token-secured ingest webhook. Duplicate alerts (same dedupKey)
+// increment a counter instead of flooding the feed. Critical alerts on
+// tier-1 services auto-promote to incidents and page on-call.
+model Alert {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  severity    String    @default("warning") // critical | warning | info
+  status      String    @default("open") // open | acked | resolved
+  source      String    @default("custom") // grafana | datadog | cloudwatch | custom | test
+  dedupKey    String?
+  count       Int       @default(1)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  resolvedAt  DateTime?
+  payload     String? // raw JSON from the source
+
+  serviceId String?
+  service   Service?  @relation(fields: [serviceId], references: [id])
+  incidentId String?
+  incident  Incident? @relation(fields: [incidentId], references: [id])
+
+  @@index([dedupKey, status])
+}
+
+// ─── Runbooks ───────────────────────────────────────────────────────────────
+
+model Runbook {
+  id        String   @id @default(cuid())
+  title     String
+  content   String // markdown-ish steps
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }

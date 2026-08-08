@@ -6,10 +6,12 @@ import { usePathname } from "next/navigation";
 const NAV = [
   { href: "/", label: "Dashboard", icon: "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" },
   { href: "/incidents", label: "Incidents", icon: "M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" },
+  { href: "/alerts", label: "Alerts", icon: "M9.9 4.2a2.1 2.1 0 014.2 0M12 3v1m8 15H4l2-3v-5a6 6 0 1112 0v5l2 3zm-6 0a2 2 0 11-4 0" },
   { href: "/oncall", label: "On-Call", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
   { href: "/notifications", label: "Notifications", icon: "M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" },
   { href: "/postmortems", label: "Postmortems", icon: "M9 12h6m-6 4h6M9 8h6M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" },
   { href: "/remediations", label: "Remediations", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+  { href: "/runbooks", label: "Runbooks", icon: "M12 6.25c-2-1.5-4.5-2-8-2v13.5c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2V4.25c-3.5 0-6 .5-8 2zm0 0v13.5" },
   { href: "/services", label: "Services", icon: "M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7M9 21V12h6v9" },
   { href: "/analytics", label: "Analytics", icon: "M9 19v-6m4 6V9m4 10V5M5 19h16" },
   { href: "/status", label: "Status Page", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
