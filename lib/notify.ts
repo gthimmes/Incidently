@@ -51,7 +51,8 @@ async function twilioSend(req: SendRequest): Promise<ProviderResult> {
     // Text-to-speech call via TwiML
     const twiml = `<Response><Say voice="alice">${req.body
       .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")}</Say><Pause length="1"/><Say>Press any key to acknowledge.</Say></Response>`;
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")}</Say><Pause length="1"/><Say>Press any key to acknowledge.</Say></Response>`;
     const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`,
       {

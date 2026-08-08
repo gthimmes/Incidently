@@ -69,6 +69,21 @@ npm run dev                 # → http://localhost:3000
 ### 📊 Analytics
 - MTTA / MTTR, weekly incident volume, MTTR trend, breakdowns by severity and service
 
+## Testing
+
+Three layers, ~85 checks total:
+
+```bash
+npm run test:unit          # 31 unit tests — engines against an isolated SQLite db
+npm run test:integration   # 23 API tests — every route over real HTTP (needs `npm run dev` running)
+npm run test:e2e           # 30 Playwright tests — every user journey in a real browser
+npm run test:all           # the whole pyramid
+```
+
+- **Unit** (`tests/unit/`): alert dedup/promotion rules, escalation sweep + on-call resolution, incident lifecycle side effects, notification fan-out per severity, the Twilio adapter (fetch mocked), and the Jira client in both mock and real mode. Each suite clones the schema into its own throwaway db.
+- **Integration** (`tests/integration/`): all 18 API routes — validation, auth (ingest token), side effects verified in the db, error paths. Reseeds before and after, leaving the app in demo state.
+- **E2E** (`e2e/`): declare→page→ack→update→Jira→resolve→postmortem as a serial journey, plus alerts pipeline (real webhook + browser), on-call override, runbook creation + incident surfacing, Ctrl+K palette, status page, notifications, analytics, settings. Auto-reseeds via global setup; reuses your running dev server or starts one.
+
 ## Stack
 
 Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Prisma + SQLite · zero runtime dependencies beyond that

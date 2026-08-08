@@ -9,8 +9,8 @@ import { beforeAll, afterAll, beforeEach, describe, expect, it } from "vitest";
 import fs from "fs";
 import path from "path";
 
-const SRC_DB = path.resolve(__dirname, "../prisma/dev.db");
-const TEST_DB = path.resolve(__dirname, `../prisma/test-${process.pid}.db`);
+const SRC_DB = path.resolve(__dirname, "../../prisma/dev.db");
+const TEST_DB = path.resolve(__dirname, `../../prisma/test-engines-${process.pid}.db`);
 
 // Set the override BEFORE importing anything that touches lib/db.
 process.env.DATABASE_URL = `file:${TEST_DB.replace(/\\/g, "/")}`;
