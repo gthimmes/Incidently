@@ -30,3 +30,14 @@ frame review at 8 anchors per the recording runbook.
 
 Earlier quick capture of a live interactive session (browser-extension
 recording). Superseded by the MP4 above for sharing.
+
+## `incidently-sprint2.mp4` — alerts pipeline walkthrough (79s)
+
+Critical monitoring alert → auto-declared SEV1 → on-call paged, plus runbooks,
+Ctrl+K palette, and on-call overrides. Recorded 2026-08-06.
+
+## `incidently-sprint3.mp4` — maintenance & insights walkthrough (71s)
+
+Maintenance windows (schedule → status page → effective Maintenance status),
+Slack #incidents broadcasts in the notifications feed, and the on-call load
+"burnout radar" in analytics. Recorded 2026-08-08, frame-verified.
