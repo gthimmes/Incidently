@@ -1,10 +1,13 @@
 import { getJiraConfig } from "@/lib/jira";
+import { prisma } from "@/lib/db";
 import JiraSettings from "./JiraSettings";
+import ApiKeysPanel from "./ApiKeysPanel";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const cfg = await getJiraConfig();
+  const apiKeys = await prisma.apiKey.findMany({ orderBy: { createdAt: "desc" } });
   const twilioLive = Boolean(
     process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER
   );
@@ -24,6 +27,17 @@ export default async function SettingsPage() {
           projectKey: cfg.projectKey,
           mockMode: cfg.mockMode,
         }}
+      />
+
+      <ApiKeysPanel
+        keys={apiKeys.map((k) => ({
+          id: k.id,
+          name: k.name,
+          prefix: k.prefix,
+          revoked: k.revoked,
+          lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
+          createdAt: k.createdAt.toISOString(),
+        }))}
       />
 
       <section className="card p-5 space-y-3">

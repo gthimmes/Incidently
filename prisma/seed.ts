@@ -10,6 +10,9 @@ const now = Date.now();
 
 async function main() {
   // wipe (order matters for FKs)
+  await prisma.slo.deleteMany();
+  await prisma.apiKey.deleteMany();
+  await prisma.maintenanceWindow.deleteMany();
   await prisma.alert.deleteMany();
   await prisma.runbook.deleteMany();
   await prisma.notification.deleteMany();
@@ -81,6 +84,11 @@ async function main() {
   const search = await mkService("Search & Indexing", "search", 2, "Full-text search and background indexing");
   const notifications = await mkService("Notification Service", "notifications", 2, "Email/SMS delivery to customers");
   await mkService("Internal Tooling", "internal-tools", 3, "Admin dashboards and internal tools");
+
+  // ── SLOs (tier-1: three nines, tier-2: 99.5) ──
+  for (const [svc, target] of [[api, 99.9], [payments, 99.9], [webapp, 99.9], [search, 99.5], [notifications, 99.5]] as const) {
+    await prisma.slo.create({ data: { serviceId: svc.id, targetPct: target, windowDays: 30 } });
+  }
 
   // ── Historical incidents (resolved, with postmortems & remediations) ──
   let n = 1000;

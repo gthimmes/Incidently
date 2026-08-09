@@ -36,7 +36,12 @@ export default async function IncidentsPage({
           <h1 className="text-2xl font-bold tracking-tight">Incidents</h1>
           <p className="text-dim text-sm mt-0.5">{incidents.length} incident{incidents.length === 1 ? "" : "s"}</p>
         </div>
-        <Link href="/incidents/declare" className="btn btn-danger">Declare Incident</Link>
+        <div className="flex gap-2">
+          <a href="/api/export/incidents" className="btn btn-ghost" download>
+            ⬇ Export CSV
+          </a>
+          <Link href="/incidents/declare" className="btn btn-danger">Declare Incident</Link>
+        </div>
       </header>
 
       <div className="flex gap-1 border-b border-line">

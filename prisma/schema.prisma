@@ -51,6 +51,7 @@ model Service {
   alerts             Alert[]
   runbooks           Runbook[]
   maintenanceWindows MaintenanceWindow[]
+  slo                Slo?
 }
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
@@ -289,6 +290,32 @@ model Alert {
   incident  Incident? @relation(fields: [incidentId], references: [id])
 
   @@index([dedupKey, status])
+}
+
+// ─── SLOs ───────────────────────────────────────────────────────────────────
+
+// One availability SLO per service. Error budget = window × (1 − target).
+// Burn is computed from incident durations at read time (lib/slo.ts).
+model Slo {
+  id         String  @id @default(cuid())
+  serviceId  String  @unique
+  service    Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  targetPct  Float   @default(99.9)
+  windowDays Int     @default(30)
+}
+
+// ─── API keys ───────────────────────────────────────────────────────────────
+
+// Keys for the public /api/v1 surface. Only the SHA-256 hash is stored;
+// the token itself is shown once at creation.
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  prefix     String // first 12 chars, for display ("ink_live_ab…")
+  keyHash    String    @unique
+  revoked    Boolean   @default(false)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
 }
 
 // ─── Maintenance windows ────────────────────────────────────────────────────

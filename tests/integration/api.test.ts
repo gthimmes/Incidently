@@ -416,6 +416,119 @@ describe("slack broadcasting", () => {
   });
 });
 
+describe("public API v1 + keys", () => {
+  let token = "";
+
+  it("creates a key (token shown once), lists with prefix only", async () => {
+    const created = await post("/api/apikeys", { name: "integration-key" });
+    expect(created.status).toBe(201);
+    expect(created.body.token).toMatch(/^ink_live_[0-9a-f]{40}$/);
+    token = created.body.token;
+
+    const list = await api("/api/apikeys");
+    const row = list.body.keys.find((k: any) => k.name === "integration-key");
+    expect(row).toBeTruthy();
+    expect(row.token).toBeUndefined();
+    expect(row.prefix).toBe(token.slice(0, 12));
+    expect((await post("/api/apikeys", {})).status).toBe(400);
+  });
+
+  it("v1 endpoints require a valid key", async () => {
+    for (const p of ["/api/v1/incidents", "/api/v1/services", "/api/v1/oncall"]) {
+      const res = await fetch(`${BASE}${p}`);
+      expect(res.status).toBe(401);
+    }
+  });
+
+  it("lists incidents, fetches detail, exposes SLO burn and on-call", async () => {
+    const h = { Authorization: `Bearer ${token}` };
+    const list = await fetch(`${BASE}/api/v1/incidents?status=open`, { headers: h }).then((r) => r.json());
+    expect(list.incidents.length).toBeGreaterThan(0);
+    expect(list.incidents[0]).toHaveProperty("declared_at");
+
+    const detail = await fetch(`${BASE}/api/v1/incidents/1006`, { headers: h }).then((r) => r.json());
+    expect(detail.incident.number).toBe(1006);
+    expect(detail.incident.timeline.length).toBeGreaterThan(0);
+    expect(
+      (await fetch(`${BASE}/api/v1/incidents/999999`, { headers: h })).status,
+    ).toBe(404);
+
+    const services = await fetch(`${BASE}/api/v1/services`, { headers: h }).then((r) => r.json());
+    const payments = services.services.find((s: any) => s.slug === "payments");
+    expect(payments.slo).toMatchObject({ target_pct: 99.9, window_days: 30 });
+    expect(typeof payments.slo.burn_pct).toBe("number");
+
+    const oncall = await fetch(`${BASE}/api/v1/oncall`, { headers: h }).then((r) => r.json());
+    expect(oncall.oncall.length).toBe(2);
+    expect(oncall.oncall[0].on_call).toHaveProperty("name");
+  });
+
+  it("declares an incident through v1 (pages on-call), validates input", async () => {
+    const h = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    const res = await fetch(`${BASE}/api/v1/incidents`, {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ title: "v1 declared incident", severity: "sev3", service: "internal-tools" }),
+    });
+    expect(res.status).toBe(201);
+    const { incident } = await res.json();
+    expect(incident.service.slug).toBe("internal-tools");
+
+    const row = await prisma.incident.findUniqueOrThrow({
+      where: { number: incident.number },
+      include: { pages: true },
+    });
+    expect(row.pages.length).toBeGreaterThan(0); // paging fired
+
+    expect(
+      (await fetch(`${BASE}/api/v1/incidents`, { method: "POST", headers: h, body: JSON.stringify({ title: "x", severity: "sev9" }) })).status,
+    ).toBe(400);
+    expect(
+      (await fetch(`${BASE}/api/v1/incidents`, { method: "POST", headers: h, body: JSON.stringify({ title: "x", severity: "sev3", service: "ghost" }) })).status,
+    ).toBe(404);
+  });
+
+  it("revoked keys stop working immediately", async () => {
+    const created = await post("/api/apikeys", { name: "short-lived" });
+    const shortToken = created.body.token;
+    const keyId = created.body.id;
+    expect(
+      (await fetch(`${BASE}/api/v1/oncall`, { headers: { Authorization: `Bearer ${shortToken}` } })).status,
+    ).toBe(200);
+    await patch(`/api/apikeys/${keyId}`, { action: "revoke" });
+    expect(
+      (await fetch(`${BASE}/api/v1/oncall`, { headers: { Authorization: `Bearer ${shortToken}` } })).status,
+    ).toBe(401);
+  });
+});
+
+describe("SLO config + CSV export", () => {
+  it("PUT slo validates and upserts", async () => {
+    const svc = await prisma.service.findUniqueOrThrow({ where: { slug: "internal-tools" } });
+    expect((await put(`/api/services/${svc.id}/slo`, { targetPct: 150 })).status).toBe(400);
+    expect((await put(`/api/services/nope/slo`, { targetPct: 99.5 })).status).toBe(404);
+    const { status, body } = await put(`/api/services/${svc.id}/slo`, { targetPct: 99.5 });
+    expect(status).toBe(200);
+    expect(body.targetPct).toBe(99.5);
+    // upsert: changing the target updates in place
+    const again = await put(`/api/services/${svc.id}/slo`, { targetPct: 99 });
+    expect(again.body.id).toBe(body.id);
+  });
+
+  it("exports incident history as CSV with lifecycle columns", async () => {
+    const res = await fetch(`${BASE}/api/export/incidents`);
+    expect(res.headers.get("content-type")).toContain("text/csv");
+    expect(res.headers.get("content-disposition")).toContain("attachment");
+    const text = await res.text();
+    const [header] = text.split("\r\n");
+    expect(header).toBe(
+      "number,title,severity,status,service,commander,declared_at,acknowledged_at,mitigated_at,resolved_at,mtta_minutes,mttr_minutes,postmortem_status",
+    );
+    expect(text).toContain("INC-1001");
+    expect(text).toContain("Database connection pool exhaustion");
+  });
+});
+
 describe("search", () => {
   it("finds incidents by number, and services/runbooks by name", async () => {
     const byNumber = await api("/api/search?q=1006");

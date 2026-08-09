@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { upcomingWindows } from "@/lib/maintenance";
+import { sloStatusForServices } from "@/lib/slo";
 import { ServiceStatusBadge } from "@/components/ui";
 import MaintenancePanel from "./MaintenancePanel";
+import SloBar from "./SloBar";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ export default async function ServicesPage() {
     orderBy: [{ tier: "asc" }, { name: "asc" }],
   });
   const windows = await upcomingWindows();
+  const slos = await sloStatusForServices(services.map((s) => s.id));
   const now = Date.now();
 
   return (
@@ -79,6 +82,21 @@ export default async function ServicesPage() {
                   </Link>
                 )}
               </div>
+              <SloBar
+                serviceId={s.id}
+                slo={
+                  slos.get(s.id)
+                    ? {
+                        targetPct: slos.get(s.id)!.targetPct,
+                        windowDays: slos.get(s.id)!.windowDays,
+                        burnPct: slos.get(s.id)!.burnPct,
+                        burnedMinutes: slos.get(s.id)!.burnedMinutes,
+                        budgetMinutes: slos.get(s.id)!.budgetMinutes,
+                        remainingMinutes: slos.get(s.id)!.remainingMinutes,
+                      }
+                    : null
+                }
+              />
             </div>
           );
         })}
