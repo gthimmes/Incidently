@@ -41,3 +41,9 @@ Ctrl+K palette, and on-call overrides. Recorded 2026-08-06.
 Maintenance windows (schedule → status page → effective Maintenance status),
 Slack #incidents broadcasts in the notifications feed, and the on-call load
 "burnout radar" in analytics. Recorded 2026-08-08, frame-verified.
+
+## `incidently-sprint4.mp4` — platform walkthrough (73s)
+
+SLO error-budget bars (Payments blowing its 99.9% budget), API key creation
+with show-once token + revoke, the /api/v1 reference, and one-click CSV
+export. Recorded 2026-08-08, frame-verified.
