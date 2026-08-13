@@ -42,6 +42,14 @@ Maintenance windows (schedule → status page → effective Maintenance status),
 Slack #incidents broadcasts in the notifications feed, and the on-call load
 "burnout radar" in analytics. Recorded 2026-08-08, frame-verified.
 
+## `incidently-sprint5.mp4` — response automation walkthrough (86s)
+
+Severity response checklists in the live incident room (SEV2 playbook,
+tick-off landing on the timeline), outbound webhooks with HMAC-signed
+deliveries — test ping, show-once signing secret, and an API-declared
+incident fanning out to two subscribers, 200 OK. Recorded 2026-08-12,
+frame-verified at 9 anchors.
+
 ## `incidently-sprint4.mp4` — platform walkthrough (73s)
 
 SLO error-budget bars (Payments blowing its 99.9% budget), API key creation
