@@ -31,6 +31,11 @@ export function cleanupTestDb(dest: string): void {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function wipeAll(prisma: any): Promise<void> {
+  await prisma.webhookDelivery.deleteMany();
+  await prisma.webhookSubscription.deleteMany();
+  await prisma.checklistItem.deleteMany();
+  await prisma.checklistTemplateItem.deleteMany();
+  await prisma.checklistTemplate.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.page.deleteMany();
   await prisma.jiraLink.deleteMany();

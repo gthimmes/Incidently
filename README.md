@@ -72,6 +72,16 @@ npm run dev                 # → http://localhost:3000
 - API keys with SHA-256 storage — token shown exactly once, revoke instantly, last-used tracking
 - Declaring through the API pages on-call exactly like the UI
 
+### 📋 Response checklists
+- Every declared incident gets a severity-appropriate response checklist (SEV1 full response → SEV4 track-and-verify), copied from editable per-severity templates
+- Progress bar in the incident room; ticking an item records who/when on the timeline
+- The 3am guardrail: nobody has to remember the comms cadence under pressure
+
+### 📣 Outbound webhooks
+- Subscribe any system to incident events: `incident.declared`, `incident.status_changed`, `incident.resolved`, `incident.update_published` — or `*`
+- Every delivery is HMAC-SHA256 signed (`X-Incidently-Signature`), logged with status/latency, and redeliverable with one click
+- Signing secret shown exactly once at creation; pause/resume without losing history; built-in test ping and a local echo receiver (`/api/dev/echo`) for zero-cost demos
+
 ### 📤 CSV export
 - One-click export of the full incident history with lifecycle timestamps, MTTA/MTTR per incident, and postmortem status — audit and compliance ready
 
@@ -84,18 +94,18 @@ npm run dev                 # → http://localhost:3000
 
 ## Testing
 
-Three layers, 120 checks total:
+Three layers, 151 checks total:
 
 ```bash
-npm run test:unit          # 49 unit tests — engines against an isolated SQLite db
-npm run test:integration   # 34 API tests — every route over real HTTP (needs `npm run dev` running)
-npm run test:e2e           # 37 Playwright tests — every user journey in a real browser
+npm run test:unit          # 69 unit tests — engines against an isolated SQLite db
+npm run test:integration   # 41 API tests — every route over real HTTP (needs `npm run dev` running)
+npm run test:e2e           # 41 Playwright tests — every user journey in a real browser
 npm run test:all           # the whole pyramid
 ```
 
 CI (GitHub Actions) runs lint → typecheck → unit → build → integration → E2E on every push.
 
-- **Unit** (`tests/unit/`): alert dedup/promotion rules, escalation sweep + on-call resolution, incident lifecycle side effects, notification fan-out per severity, the Twilio adapter (fetch mocked), and the Jira client in both mock and real mode. Each suite clones the schema into its own throwaway db.
+- **Unit** (`tests/unit/`): alert dedup/promotion rules, escalation sweep + on-call resolution, incident lifecycle side effects, notification fan-out per severity, the Twilio adapter (fetch mocked), the Jira client in both mock and real mode, checklist templates/instantiation/tick-off, and webhook signing/filtering/delivery/redelivery (fetch mocked). Each suite clones the schema into its own throwaway db.
 - **Integration** (`tests/integration/`): all 18 API routes — validation, auth (ingest token), side effects verified in the db, error paths. Reseeds before and after, leaving the app in demo state.
 - **E2E** (`e2e/`): declare→page→ack→update→Jira→resolve→postmortem as a serial journey, plus alerts pipeline (real webhook + browser), on-call override, runbook creation + incident surfacing, Ctrl+K palette, status page, notifications, analytics, settings. Auto-reseeds via global setup; reuses your running dev server or starts one.
 

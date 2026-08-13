@@ -31,6 +31,7 @@ model User {
   escalationTargets EscalationTarget[]
   notifications    Notification[]
   pages            Page[]
+  checklistItems   ChecklistItem[] @relation("doneBy")
 }
 
 // ─── Services ────────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ model Incident {
   notifications Notification[]
   jiraLinks     JiraLink[]
   alerts        Alert[]
+  checklist     ChecklistItem[]
 }
 
 model IncidentRole {
@@ -332,6 +334,68 @@ model MaintenanceWindow {
   serviceId String
   service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+// ─── Response checklists ────────────────────────────────────────────────────
+
+// One template per severity. Declaring an incident copies the template's
+// items onto the incident as ChecklistItems; ticking one records who/when
+// and drops an event on the timeline.
+model ChecklistTemplate {
+  id       String @id @default(cuid())
+  severity String @unique // sev1 | sev2 | sev3 | sev4
+  name     String
+
+  items ChecklistTemplateItem[]
+}
+
+model ChecklistTemplateItem {
+  id         String            @id @default(cuid())
+  templateId String
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String
+}
+
+model ChecklistItem {
+  id         String    @id @default(cuid())
+  incidentId String
+  incident   Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String
+  done       Boolean   @default(false)
+  doneAt     DateTime?
+  doneById   String?
+  doneBy     User?     @relation("doneBy", fields: [doneById], references: [id])
+}
+
+// ─── Outbound webhooks ──────────────────────────────────────────────────────
+
+// External systems subscribe to incident events. Deliveries are HMAC-SHA256
+// signed with the subscription secret and logged (redeliverable).
+model WebhookSubscription {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  secret    String // whsec_<hex>; used to sign payloads
+  events    String // JSON array of event names, or ["*"]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id             String              @id @default(cuid())
+  subscriptionId String
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  event          String
+  payload        String // JSON as sent
+  status         String   @default("pending") // success | failed
+  statusCode     Int?
+  error          String?
+  durationMs     Int?
+  createdAt      DateTime @default(now())
 }
 
 // ─── Runbooks ───────────────────────────────────────────────────────────────

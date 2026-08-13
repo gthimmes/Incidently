@@ -2,6 +2,8 @@
 import { prisma } from "./db";
 import { fireLevel } from "./escalation";
 import { broadcastToSlack } from "./slack";
+import { instantiateChecklist } from "./checklists";
+import { emitWebhookEvent, incidentSnapshot } from "./webhooks";
 import { INCIDENT_STATUSES, SEVERITIES } from "./constants";
 
 async function nextIncidentNumber(): Promise<number> {
@@ -73,6 +75,9 @@ export async function declareIncident(opts: {
     });
   }
 
+  // attach the severity's response checklist
+  await instantiateChecklist(incident.id, opts.severity);
+
   // page level 1 of the service's escalation policy
   await fireLevel(incident.id, 1);
 
@@ -83,6 +88,8 @@ export async function declareIncident(opts: {
     incidentId: incident.id,
     text: `:rotating_light: *${sev?.label ?? opts.severity} declared* — INC-${number}: ${opts.title}${service ? ` (${service.name})` : ""}. Channel: ${incident.slackChannel}`,
   });
+
+  await emitWebhookEvent("incident.declared", incidentSnapshot(incident, service?.name));
 
   return incident;
 }
@@ -121,6 +128,14 @@ export async function changeIncidentStatus(incidentId: string, status: string, a
         ? `:white_check_mark: *INC-${incident.number} resolved* — ${incident.title}`
         : `:arrows_counterclockwise: INC-${incident.number} status: ${from} → *${to}*`,
   });
+
+  const svc = incident.serviceId
+    ? await prisma.service.findUnique({ where: { id: incident.serviceId } })
+    : null;
+  await emitWebhookEvent(
+    status === "resolved" ? "incident.resolved" : "incident.status_changed",
+    { ...incidentSnapshot(updated, svc?.name), previous_status: incident.status },
+  );
 
   if (status === "resolved") {
     // settle open pages, restore service status, scaffold a postmortem for sev1/2

@@ -529,6 +529,114 @@ describe("SLO config + CSV export", () => {
   });
 });
 
+describe("response checklists", () => {
+  it("declaring an incident attaches the severity's checklist", async () => {
+    const incident = await declare({ severity: "sev2" });
+    const items = await prisma.checklistItem.findMany({
+      where: { incidentId: incident.id },
+      orderBy: { order: "asc" },
+    });
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0].text).toContain("acknowledged the page");
+  });
+
+  it("PATCH /api/checklist/:id toggles done and logs a timeline event", async () => {
+    const incident = await declare({ severity: "sev3" });
+    const item = await prisma.checklistItem.findFirstOrThrow({ where: { incidentId: incident.id } });
+
+    expect((await patch(`/api/checklist/${item.id}`, { done: "yes" })).status).toBe(400);
+
+    const { status, body } = await patch(`/api/checklist/${item.id}`, { done: true });
+    expect(status).toBe(200);
+    expect(body.done).toBe(true);
+    expect(body.doneById).not.toBeNull();
+
+    const event = await prisma.incidentEvent.findFirst({
+      where: { incidentId: incident.id, kind: "checklist" },
+    });
+    expect(event).not.toBeNull();
+  });
+});
+
+describe("outbound webhooks", () => {
+  let hookId: string;
+  let secret: string;
+
+  it("POST /api/webhooks validates and returns the secret exactly once", async () => {
+    expect((await post("/api/webhooks", { name: "x" })).status).toBe(400);
+    expect((await post("/api/webhooks", { name: "x", url: "not-a-url" })).status).toBe(400);
+    expect(
+      (await post("/api/webhooks", { name: "x", url: `${BASE}/api/dev/echo`, events: ["bogus.event"] })).status,
+    ).toBe(400);
+
+    const { status, body } = await post("/api/webhooks", {
+      name: "integration-hook",
+      url: `${BASE}/api/dev/echo`,
+      events: ["incident.declared"],
+    });
+    expect(status).toBe(201);
+    expect(body.secret).toMatch(/^whsec_[0-9a-f]{48}$/);
+    hookId = body.id;
+    secret = body.secret;
+
+    // reads never expose the secret
+    const list = await api("/api/webhooks");
+    const mine = list.body.find((h: any) => h.id === hookId);
+    expect(mine).toBeDefined();
+    expect(mine.secret).toBeUndefined();
+  });
+
+  it("declaring an incident delivers a signed event to the endpoint", async () => {
+    const before = await prisma.webhookDelivery.count({ where: { subscriptionId: hookId } });
+    await declare({ severity: "sev4", title: "Webhook delivery test" });
+    const deliveries = await prisma.webhookDelivery.findMany({
+      where: { subscriptionId: hookId },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(deliveries.length).toBe(before + 1);
+    const d = deliveries[0];
+    expect(d.event).toBe("incident.declared");
+    expect(d.status).toBe("success");
+    expect(d.statusCode).toBe(200);
+    const payload = JSON.parse(d.payload);
+    expect(payload.data.title).toBe("Webhook delivery test");
+    expect(secret).toBeTruthy(); // secret was only handed out at creation
+  });
+
+  it("filtered events are not delivered", async () => {
+    const incident = await declare({ severity: "sev4" });
+    const before = await prisma.webhookDelivery.count({ where: { subscriptionId: hookId } });
+    await patch(`/api/incidents/${incident.id}`, { status: "investigating" });
+    // subscription only wants incident.declared — status change must not deliver
+    expect(await prisma.webhookDelivery.count({ where: { subscriptionId: hookId } })).toBe(before);
+  });
+
+  it("test ping and redelivery both log deliveries", async () => {
+    const ping = await post(`/api/webhooks/${hookId}/test`);
+    expect(ping.status).toBe(201);
+    expect(ping.body.event).toBe("ping");
+    expect(ping.body.status).toBe("success");
+
+    const redo = await post(`/api/webhooks/deliveries/${ping.body.id}`);
+    expect(redo.status).toBe(201);
+    expect(redo.body.payload).toBe(ping.body.payload);
+    expect(redo.body.id).not.toBe(ping.body.id);
+  });
+
+  it("paused hooks receive nothing; DELETE removes the subscription", async () => {
+    expect((await patch(`/api/webhooks/${hookId}`, { active: "no" })).status).toBe(400);
+    expect((await patch(`/api/webhooks/${hookId}`, { active: false })).body.active).toBe(false);
+
+    const before = await prisma.webhookDelivery.count({ where: { subscriptionId: hookId } });
+    await declare({ severity: "sev4" });
+    expect(await prisma.webhookDelivery.count({ where: { subscriptionId: hookId } })).toBe(before);
+
+    const del = await api(`/api/webhooks/${hookId}`, { method: "DELETE" });
+    expect(del.status).toBe(200);
+    expect(await prisma.webhookSubscription.findUnique({ where: { id: hookId } })).toBeNull();
+  });
+});
+
 describe("search", () => {
   it("finds incidents by number, and services/runbooks by name", async () => {
     const byNumber = await api("/api/search?q=1006");

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getDefaultActor } from "@/lib/actions";
 import { broadcastToSlack } from "@/lib/slack";
+import { emitWebhookEvent, incidentSnapshot } from "@/lib/webhooks";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -22,6 +23,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   await broadcastToSlack({
     incidentId: id,
     text: `:mega: *INC-${incident.number} update* — ${body.body}`,
+  });
+  const svc = incident.serviceId
+    ? await prisma.service.findUnique({ where: { id: incident.serviceId } })
+    : null;
+  await emitWebhookEvent("incident.update_published", {
+    ...incidentSnapshot(incident, svc?.name),
+    update: body.body,
   });
   return NextResponse.json(update, { status: 201 });
 }

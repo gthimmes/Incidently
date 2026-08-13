@@ -1,6 +1,8 @@
 /* Seed: realistic demo data — users, services, schedules, escalation
    policies, historical incidents with postmortems, and one live incident. */
 import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
+import { DEFAULT_TEMPLATES } from "../lib/checklists";
 
 const prisma = new PrismaClient();
 
@@ -10,6 +12,11 @@ const now = Date.now();
 
 async function main() {
   // wipe (order matters for FKs)
+  await prisma.webhookDelivery.deleteMany();
+  await prisma.webhookSubscription.deleteMany();
+  await prisma.checklistItem.deleteMany();
+  await prisma.checklistTemplateItem.deleteMany();
+  await prisma.checklistTemplate.deleteMany();
   await prisma.slo.deleteMany();
   await prisma.apiKey.deleteMany();
   await prisma.maintenanceWindow.deleteMany();
@@ -394,7 +401,55 @@ async function main() {
     },
   });
 
-  console.log(`Seeded: ${team.length} users, 6 services, ${n - 1000} incidents (1 live), 3 runbooks, 4 alerts`);
+  // ── Response checklist templates (one per severity) ──
+  for (const [severity, t] of Object.entries(DEFAULT_TEMPLATES)) {
+    await prisma.checklistTemplate.create({
+      data: {
+        severity,
+        name: t.name,
+        items: { create: t.items.map((text, i) => ({ order: i + 1, text })) },
+      },
+    });
+  }
+
+  // the live SEV2 gets its checklist, partially worked through
+  const sev2Items = DEFAULT_TEMPLATES.sev2.items;
+  for (let i = 0; i < sev2Items.length; i++) {
+    const done = i < 3; // acked, comms assigned, first update published
+    await prisma.checklistItem.create({
+      data: {
+        incidentId: live.id, order: i + 1, text: sev2Items[i],
+        done, doneAt: done ? new Date(liveDeclared.getTime() + (i + 2) * 3 * 60_000) : null,
+        doneById: done ? maya.id : null,
+      },
+    });
+  }
+
+  // ── Outbound webhook subscription (points at the local echo receiver) ──
+  const hook = await prisma.webhookSubscription.create({
+    data: {
+      name: "Ops event bus",
+      url: "http://localhost:3000/api/dev/echo",
+      secret: `whsec_${crypto.randomBytes(24).toString("hex")}`,
+      events: JSON.stringify(["*"]),
+    },
+  });
+  await prisma.webhookDelivery.create({
+    data: {
+      subscriptionId: hook.id, event: "incident.declared", status: "success", statusCode: 200, durationMs: 41,
+      payload: JSON.stringify({ event: "incident.declared", timestamp: liveDeclared.toISOString(), data: { incident: `INC-${n}`, title: live.title, severity: "sev2", status: "triage", service: "Payments Pipeline" } }),
+      createdAt: liveDeclared,
+    },
+  });
+  await prisma.webhookDelivery.create({
+    data: {
+      subscriptionId: hook.id, event: "incident.update_published", status: "success", statusCode: 200, durationMs: 38,
+      payload: JSON.stringify({ event: "incident.update_published", timestamp: new Date(liveDeclared.getTime() + 8 * 60_000).toISOString(), data: { incident: `INC-${n}`, title: live.title, severity: "sev2", status: "investigating", service: "Payments Pipeline" } }),
+      createdAt: new Date(liveDeclared.getTime() + 8 * 60_000),
+    },
+  });
+
+  console.log(`Seeded: ${team.length} users, 6 services, ${n - 1000} incidents (1 live), 3 runbooks, 4 alerts, 4 checklist templates, 1 webhook`);
 }
 
 main()

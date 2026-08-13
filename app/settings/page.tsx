@@ -2,12 +2,20 @@ import { getJiraConfig } from "@/lib/jira";
 import { prisma } from "@/lib/db";
 import JiraSettings from "./JiraSettings";
 import ApiKeysPanel from "./ApiKeysPanel";
+import WebhooksPanel from "./WebhooksPanel";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const cfg = await getJiraConfig();
   const apiKeys = await prisma.apiKey.findMany({ orderBy: { createdAt: "desc" } });
+  const hooks = await prisma.webhookSubscription.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      deliveries: { orderBy: { createdAt: "desc" }, take: 5 },
+      _count: { select: { deliveries: true } },
+    },
+  });
   const twilioLive = Boolean(
     process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER
   );
@@ -27,6 +35,26 @@ export default async function SettingsPage() {
           projectKey: cfg.projectKey,
           mockMode: cfg.mockMode,
         }}
+      />
+
+      <WebhooksPanel
+        hooks={hooks.map((h) => ({
+          id: h.id,
+          name: h.name,
+          url: h.url,
+          events: h.events,
+          active: h.active,
+          createdAt: h.createdAt.toISOString(),
+          deliveryCount: h._count.deliveries,
+          deliveries: h.deliveries.map((d) => ({
+            id: d.id,
+            event: d.event,
+            status: d.status,
+            statusCode: d.statusCode,
+            durationMs: d.durationMs,
+            createdAt: d.createdAt.toISOString(),
+          })),
+        }))}
       />
 
       <ApiKeysPanel

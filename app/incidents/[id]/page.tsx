@@ -9,6 +9,7 @@ import UpdatesPanel from "./UpdatesPanel";
 import RolesPanel from "./RolesPanel";
 import PagesPanel from "./PagesPanel";
 import ActionItemsPanel from "./ActionItemsPanel";
+import ChecklistPanel from "./ChecklistPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
       actionItems: { include: { assignee: true, jiraLinks: true }, orderBy: { createdAt: "desc" } },
       postmortem: true,
       jiraLinks: true,
+      checklist: { include: { doneBy: true }, orderBy: { order: "asc" } },
     },
   });
   if (!incident) notFound();
@@ -82,6 +84,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
           <Timeline incidentId={incident.id} events={incident.events} disabled={resolved} />
         </div>
         <div className="space-y-6">
+          <ChecklistPanel items={incident.checklist} disabled={resolved} />
           <RolesPanel
             incidentId={incident.id}
             roles={incident.roles}
