@@ -16,6 +16,7 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "date-fns": "^4.4.0",
+    "help-navigator": "github:gthimmes/help-navigator",
     "next": "16.3.0",
     "prisma": "^6.19.3",
     "react": "19.2.8",

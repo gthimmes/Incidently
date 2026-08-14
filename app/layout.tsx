@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import CommandPalette from "@/components/CommandPalette";
+import HelpWidget from "@/components/HelpWidget";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1 min-w-0 px-8 py-6 max-w-[1400px]">{children}</main>
         </div>
         <CommandPalette />
+        <HelpWidget />
       </body>
     </html>
   );
