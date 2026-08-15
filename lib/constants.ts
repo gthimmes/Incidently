@@ -1,4 +1,5 @@
 export const SEVERITIES = {
+  sev0: { label: "SEV0", name: "Catastrophic", color: "#d946ef", description: "Existential: company-wide outage, all hands" },
   sev1: { label: "SEV1", name: "Critical", color: "#ef4444", description: "Full outage or severe customer impact" },
   sev2: { label: "SEV2", name: "Major", color: "#f97316", description: "Partial outage, significant degradation" },
   sev3: { label: "SEV3", name: "Minor", color: "#eab308", description: "Minor degradation, limited impact" },
@@ -6,6 +7,11 @@ export const SEVERITIES = {
 } as const;
 
 export type SeverityKey = keyof typeof SEVERITIES;
+
+// Severities that page with voice, degrade the status page, auto-create a
+// postmortem, and burn SLO error budget.
+export const HIGH_SEVERITIES: SeverityKey[] = ["sev0", "sev1", "sev2"];
+export const isHighSeverity = (sev: string) => (HIGH_SEVERITIES as string[]).includes(sev);
 
 export const INCIDENT_STATUSES = {
   triage: { label: "Triage", color: "#ef4444", description: "Just declared, assessing impact" },

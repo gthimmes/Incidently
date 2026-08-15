@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
   if (!body?.title || !body?.severity) {
     return NextResponse.json({ error: "title and severity are required" }, { status: 400 });
   }
-  if (!["sev1", "sev2", "sev3", "sev4"].includes(body.severity)) {
-    return NextResponse.json({ error: "severity must be sev1..sev4" }, { status: 400 });
+  if (!["sev0", "sev1", "sev2", "sev3", "sev4"].includes(body.severity)) {
+    return NextResponse.json({ error: "severity must be sev0..sev4" }, { status: 400 });
   }
   let serviceId: string | undefined;
   if (body.service) {

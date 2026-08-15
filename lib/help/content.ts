@@ -61,7 +61,7 @@ export const helpContent: HelpContent = {
 
 1. **Declare** an incident (or let an alert promote itself) — on-call is paged instantly
 2. **Respond** in the incident room: statuses, roles, timeline, status updates
-3. **Resolve** — SEV1/SEV2 incidents auto-create a postmortem
+3. **Resolve** — SEV0–SEV2 incidents auto-create a postmortem
 4. **Learn** — publish the postmortem and track remediations to done
 
 ## Where things live
@@ -114,7 +114,7 @@ The command palette searches incidents, services, and runbooks in one box — fa
 ## What you fill in
 
 - **Summary** — one line, plain language: *"Elevated error rates on checkout"*
-- **Severity** — SEV1 (critical, all hands) to SEV4 (minor)
+- **Severity** — SEV0 (existential, all hands) to SEV4 (minor)
 - **Affected service** — picks who gets paged and which runbooks surface
 
 ## What happens the moment you declare
@@ -128,11 +128,12 @@ The command palette searches incidents, services, and runbooks in one box — fa
     },
     {
       id: "severity-levels",
-      title: "Choosing a severity (SEV1–SEV4)",
+      title: "Choosing a severity (SEV0–SEV4)",
       category: "incidents",
-      tags: ["severity", "sev1", "sev2", "triage"],
+      tags: ["severity", "sev0", "sev1", "sev2", "triage"],
       body: `Severity decides who gets woken up and how:
 
+- **SEV0** — existential, company-wide outage. Everything SEV1 does, plus the all-hands checklist: war room, executive notification, legal/regulatory check. Reserved for a human's judgment — alerts never auto-promote this far
 - **SEV1** — critical outage, customers can't use the product. SMS **and** voice call, auto-postmortem on resolve
 - **SEV2** — major degradation or a tier-1 service impaired. SMS + voice, auto-postmortem
 - **SEV3** — partial or degraded functionality, workaround exists. Standard channels
@@ -211,7 +212,7 @@ Cadence beats completeness: a short update every 20–30 minutes during a SEV1/S
 On resolve:
 
 - The resolved timestamp locks in, completing the incident's analytics record
-- **SEV1 and SEV2 incidents auto-create a postmortem** in Draft, with the timeline already embedded
+- **SEV0–SEV2 incidents auto-create a postmortem** in Draft, with the timeline already embedded
 - Open action items stay live on the Remediations board — resolving the incident does not close its follow-ups
 
 Resolved too early? Reopen by stepping the status back — the timeline records that too, blamelessly.`,
@@ -279,7 +280,7 @@ Overrides are logged, so "who was actually on call at 03:00?" always has a true 
       tags: ["sms", "voice", "notifications", "twilio"],
       body: `Every page fans out across channels — and severity changes the mix:
 
-- **SEV1 / SEV2** — SMS **and** a voice call, plus email and push. Hard to sleep through, by design.
+- **SEV0 / SEV1 / SEV2** — SMS **and** a voice call, plus email and push. Hard to sleep through, by design.
 - **SEV3 / SEV4** — standard channels
 
 ## Simulation mode (the default)
@@ -385,7 +386,7 @@ Firing counts show how many times a deduped alert re-fired — a 47× counter is
       category: "learning",
       featured: true,
       tags: ["postmortem", "blameless", "root-cause"],
-      body: `SEV1/SEV2 incidents get a postmortem automatically on resolve; the incident timeline is embedded so nobody reconstructs history from memory.
+      body: `SEV0–SEV2 incidents get a postmortem automatically on resolve; the incident timeline is embedded so nobody reconstructs history from memory.
 
 ## The guided template
 

@@ -5,6 +5,21 @@
 import { prisma } from "./db";
 
 export const DEFAULT_TEMPLATES: Record<string, { name: string; items: string[] }> = {
+  sev0: {
+    name: "SEV0 — all-hands response",
+    items: [
+      "Confirm on-call has acknowledged the page",
+      "Open a war room and pull in every affected team",
+      "Assign Commander, Comms Lead, Ops Lead, and Scribe",
+      "Notify executive leadership immediately",
+      "Publish first status-page update (within 10 min)",
+      "Check for a recent deploy — roll back first, investigate second",
+      "Assess legal / regulatory / contractual exposure",
+      "Publish status updates every 15 minutes",
+      "Confirm customer impact has stopped before Monitoring",
+      "Schedule the postmortem review before standing down",
+    ],
+  },
   sev1: {
     name: "SEV1 — full response",
     items: [

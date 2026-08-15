@@ -45,7 +45,8 @@ describe("ensureDefaultTemplates", () => {
   it("creates one template per severity with ordered items", async () => {
     await ensureDefaultTemplates();
     const templates = await prisma.checklistTemplate.findMany({ include: { items: true } });
-    expect(templates).toHaveLength(4);
+    expect(templates).toHaveLength(5);
+    expect(templates.map((t: any) => t.severity).sort()).toEqual(["sev0", "sev1", "sev2", "sev3", "sev4"]);
     const sev1 = templates.find((t: any) => t.severity === "sev1");
     expect(sev1.items).toHaveLength(DEFAULT_TEMPLATES.sev1.items.length);
     expect(sev1.items.map((i: any) => i.order).sort((a: number, b: number) => a - b)).toEqual(
@@ -56,7 +57,7 @@ describe("ensureDefaultTemplates", () => {
   it("is idempotent — running twice does not duplicate", async () => {
     await ensureDefaultTemplates();
     await ensureDefaultTemplates();
-    expect(await prisma.checklistTemplate.count()).toBe(4);
+    expect(await prisma.checklistTemplate.count()).toBe(5);
     expect(await prisma.checklistTemplateItem.count()).toBe(
       Object.values(DEFAULT_TEMPLATES).reduce((n: number, t: any) => n + t.items.length, 0),
     );

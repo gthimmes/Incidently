@@ -52,6 +52,11 @@ describe("computeBurnedMinutes", () => {
     expect(burned).toBeCloseTo(60 + 30, 5);
   });
 
+  it("sev0 burns at full weight, same as sev1", () => {
+    const burned = computeBurnedMinutes([inc("sev0", 500, 60)], windowStart, now);
+    expect(burned).toBeCloseTo(60, 5);
+  });
+
   it("open incidents burn up to now", () => {
     const burned = computeBurnedMinutes([inc("sev1", 90, null)], windowStart, now);
     expect(burned).toBeCloseTo(90, 5);

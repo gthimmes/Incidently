@@ -20,7 +20,7 @@ export interface SloStatus {
   healthy: boolean;
 }
 
-const SEVERITY_WEIGHT: Record<string, number> = { sev1: 1, sev2: 0.5 };
+const SEVERITY_WEIGHT: Record<string, number> = { sev0: 1, sev1: 1, sev2: 0.5 };
 
 export function computeBurnedMinutes(
   incidents: { severity: string; declaredAt: Date; resolvedAt: Date | null }[],
@@ -49,7 +49,7 @@ export async function sloStatusForServices(serviceIds: string[]): Promise<Map<st
     const incidents = await prisma.incident.findMany({
       where: {
         serviceId: slo.serviceId,
-        severity: { in: ["sev1", "sev2"] },
+        severity: { in: ["sev0", "sev1", "sev2"] },
         declaredAt: { lte: now },
         OR: [{ resolvedAt: null }, { resolvedAt: { gte: windowStart } }],
       },

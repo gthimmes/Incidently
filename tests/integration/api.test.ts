@@ -540,6 +540,21 @@ describe("response checklists", () => {
     expect(items[0].text).toContain("acknowledged the page");
   });
 
+  it("sev0 attaches the all-hands checklist and takes the service to major_outage", async () => {
+    const incident = await declare({ severity: "sev0", title: "Total outage drill" });
+    const items = await prisma.checklistItem.findMany({
+      where: { incidentId: incident.id },
+      orderBy: { order: "asc" },
+    });
+    expect(items.some((i: any) => i.text.includes("war room"))).toBe(true);
+    expect(items.some((i: any) => i.text.includes("executive leadership"))).toBe(true);
+
+    const svc = await prisma.service.findUniqueOrThrow({ where: { slug: "internal-tools" } });
+    expect(svc.status).toBe("major_outage");
+    // restore for later tests
+    await patch(`/api/incidents/${incident.id}`, { status: "resolved" });
+  });
+
   it("PATCH /api/checklist/:id toggles done and logs a timeline event", async () => {
     const incident = await declare({ severity: "sev3" });
     const item = await prisma.checklistItem.findFirstOrThrow({ where: { incidentId: incident.id } });

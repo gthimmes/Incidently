@@ -286,6 +286,21 @@ describe("incident lifecycle", () => {
     expect(service.status).toBe("operational");
   });
 
+  it("sev0 degrades the service to major_outage and forces a postmortem on resolve", async () => {
+    const { tier1 } = await fixtures();
+    const incident = await declareIncident({ title: "Everything is down", severity: "sev0", serviceId: tier1.id });
+
+    const service = await prisma.service.findUniqueOrThrow({ where: { id: tier1.id } });
+    expect(service.status).toBe("major_outage");
+
+    await changeIncidentStatus(incident.id, "resolved");
+    const fresh = await prisma.incident.findUniqueOrThrow({
+      where: { id: incident.id },
+      include: { postmortem: true },
+    });
+    expect(fresh.postmortem).not.toBeNull();
+  });
+
   it("sev3 resolve does not force a postmortem; service stays operational throughout", async () => {
     const { tier2 } = await fixtures();
     const incident = await declareIncident({ title: "Minor blip", severity: "sev3", serviceId: tier2.id });

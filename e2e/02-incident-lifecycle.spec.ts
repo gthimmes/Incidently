@@ -75,7 +75,7 @@ test.describe.serial("incident lifecycle", () => {
     await page.goto(incidentUrl);
     await page.getByRole("button", { name: /✓ Resolve/ }).click();
     await expect(page.getByText("Resolved — nice work.")).toBeVisible();
-    await expect(page.getByText("Postmortem draft created automatically (required for SEV1/SEV2)")).toBeVisible();
+    await expect(page.getByText("Postmortem draft created automatically (required for SEV0–SEV2)")).toBeVisible();
 
     // service back to operational on the status page (payments still degraded from INC-1006)
     await page.goto("/services");

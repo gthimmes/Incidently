@@ -7,6 +7,7 @@
 // Twilio adapter below takes over automatically. No code changes required.
 
 import { prisma } from "./db";
+import { isHighSeverity } from "./constants";
 
 export type Channel = "sms" | "voice" | "email" | "slack" | "push";
 
@@ -108,7 +109,7 @@ export async function send(req: SendRequest) {
   });
 }
 
-/** Page a user across all their channels (voice+sms for sev1/sev2, sms otherwise). */
+/** Page a user across all their channels (voice+sms for sev0–sev2, sms otherwise). */
 export async function pageUser(opts: {
   userId: string;
   incidentId: string;
@@ -123,7 +124,7 @@ export async function pageUser(opts: {
   const sends: Promise<unknown>[] = [];
   if (user.phone) {
     sends.push(send({ channel: "sms", recipient: user.phone, body, userId: user.id, incidentId: opts.incidentId, pageId: opts.pageId }));
-    if (opts.severity === "sev1" || opts.severity === "sev2") {
+    if (isHighSeverity(opts.severity)) {
       sends.push(send({ channel: "voice", recipient: user.phone, body, userId: user.id, incidentId: opts.incidentId, pageId: opts.pageId }));
     }
   }

@@ -137,6 +137,24 @@ describe("pageUser()", () => {
     expect(channels).toEqual(["email", "push", "sms", "voice"]);
   });
 
+  it("sev0 gets the full fan-out including voice, like sev1", async () => {
+    const user = await makeUser();
+    const incident = await makeIncident("sev0");
+    const page = await prisma.page.create({ data: { incidentId: incident.id, userId: user.id } });
+
+    await pageUser({
+      userId: user.id,
+      incidentId: incident.id,
+      pageId: page.id,
+      severity: "sev0",
+      incidentNumber: incident.number,
+      title: incident.title,
+    });
+
+    const channels = (await prisma.notification.findMany()).map((n: any) => n.channel).sort();
+    expect(channels).toEqual(["email", "push", "sms", "voice"]);
+  });
+
   it("sev3 skips the voice call", async () => {
     const user = await makeUser();
     const incident = await makeIncident("sev3");

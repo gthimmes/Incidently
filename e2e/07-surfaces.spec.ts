@@ -27,7 +27,7 @@ test.describe("surfaces", () => {
   test("analytics renders stat tiles and all four charts", async ({ page }) => {
     await page.goto("/analytics");
     // labels are uppercased by CSS; DOM text keeps original casing
-    for (const label of ["Incidents · 12w", "MTTA", "MTTR", "SEV1/SEV2 share"]) {
+    for (const label of ["Incidents · 12w", "MTTA", "MTTR", "High-sev share"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
     for (const chart of ["Incidents per week", "MTTR trend", "By severity", "By service", "On-call load"]) {

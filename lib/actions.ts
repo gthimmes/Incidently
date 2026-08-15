@@ -4,7 +4,7 @@ import { fireLevel } from "./escalation";
 import { broadcastToSlack } from "./slack";
 import { instantiateChecklist } from "./checklists";
 import { emitWebhookEvent, incidentSnapshot } from "./webhooks";
-import { INCIDENT_STATUSES, SEVERITIES } from "./constants";
+import { INCIDENT_STATUSES, SEVERITIES, isHighSeverity } from "./constants";
 
 async function nextIncidentNumber(): Promise<number> {
   const row = await prisma.setting.findUnique({ where: { key: "incident_counter" } });
@@ -68,10 +68,10 @@ export async function declareIncident(opts: {
   });
 
   // degrade the service on the status page for high-sev incidents
-  if (opts.serviceId && (opts.severity === "sev1" || opts.severity === "sev2")) {
+  if (opts.serviceId && isHighSeverity(opts.severity)) {
     await prisma.service.update({
       where: { id: opts.serviceId },
-      data: { status: opts.severity === "sev1" ? "major_outage" : "degraded" },
+      data: { status: opts.severity === "sev2" ? "degraded" : "major_outage" },
     });
   }
 
@@ -138,7 +138,7 @@ export async function changeIncidentStatus(incidentId: string, status: string, a
   );
 
   if (status === "resolved") {
-    // settle open pages, restore service status, scaffold a postmortem for sev1/2
+    // settle open pages, restore service status, scaffold a postmortem for high sevs
     await prisma.page.updateMany({
       where: { incidentId, status: "pending" },
       data: { status: "resolved" },
@@ -151,14 +151,14 @@ export async function changeIncidentStatus(incidentId: string, status: string, a
         await prisma.service.update({ where: { id: incident.serviceId }, data: { status: "operational" } });
       }
     }
-    if (incident.severity === "sev1" || incident.severity === "sev2") {
+    if (isHighSeverity(incident.severity)) {
       await prisma.postmortem.upsert({
         where: { incidentId },
         create: { incidentId, status: "draft", summary: incident.summary ?? incident.title },
         update: {},
       });
       await prisma.incidentEvent.create({
-        data: { incidentId, kind: "note", message: "Postmortem draft created automatically (required for SEV1/SEV2)" },
+        data: { incidentId, kind: "note", message: "Postmortem draft created automatically (required for SEV0–SEV2)" },
       });
     }
   }

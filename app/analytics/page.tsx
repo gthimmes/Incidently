@@ -86,9 +86,9 @@ export default async function AnalyticsPage() {
     { label: "MTTA", value: fmtMinutes(mtta), hint: "mean time to acknowledge" },
     { label: "MTTR", value: fmtMinutes(mttr), hint: "mean time to resolve" },
     {
-      label: "SEV1/SEV2 share",
+      label: "High-sev share",
       value: incidents.length
-        ? `${Math.round((incidents.filter((i) => i.severity === "sev1" || i.severity === "sev2").length / incidents.length) * 100)}%`
+        ? `${Math.round((incidents.filter((i) => ["sev0", "sev1", "sev2"].includes(i.severity)).length / incidents.length) * 100)}%`
         : "—",
     },
   ];

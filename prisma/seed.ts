@@ -449,7 +449,7 @@ async function main() {
     },
   });
 
-  console.log(`Seeded: ${team.length} users, 6 services, ${n - 1000} incidents (1 live), 3 runbooks, 4 alerts, 4 checklist templates, 1 webhook`);
+  console.log(`Seeded: ${team.length} users, 6 services, ${n - 1000} incidents (1 live), 3 runbooks, 4 alerts, ${Object.keys(DEFAULT_TEMPLATES).length} checklist templates, 1 webhook`);
 }
 
 main()
