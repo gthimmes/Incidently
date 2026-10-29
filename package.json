@@ -14,11 +14,12 @@
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "date-fns": "^4.4.0",
     "help-navigator": "github:gthimmes/help-navigator",
     "next": "16.4.3",
-    "prisma": "^6.19.3",
+    "prisma": "^7.10.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

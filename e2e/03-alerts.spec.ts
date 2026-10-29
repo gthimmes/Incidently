@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
+import { createSqliteAdapter } from "../lib/sqlite-adapter";
 
 // Alert pipeline through the browser + the real webhook.
 test.describe.serial("alerts", () => {
@@ -8,7 +9,7 @@ test.describe.serial("alerts", () => {
   test.beforeAll(async ({ request }) => {
     // Visiting the alerts API surface lazily creates the ingest token.
     await request.get("/alerts");
-    const prisma = new PrismaClient();
+    const prisma = new PrismaClient({ adapter: createSqliteAdapter() });
     token = (await prisma.setting.findUniqueOrThrow({ where: { key: "ingest_token" } })).value;
     await prisma.$disconnect();
   });

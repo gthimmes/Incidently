@@ -2,9 +2,10 @@
    policies, historical incidents with postmortems, and one live incident. */
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
+import { createSqliteAdapter } from "../lib/sqlite-adapter";
 import { DEFAULT_TEMPLATES } from "../lib/checklists";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createSqliteAdapter() });
 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
